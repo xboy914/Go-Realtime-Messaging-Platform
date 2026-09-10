@@ -10,27 +10,28 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/auth"
 	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/httpapi"
 	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/realtime"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	manager, err := auth.NewManager(os.Getenv("JWT_SECRET"), "go-realtime-messaging", 15*time.Minute)
+	if err != nil {
+		logger.Error("invalid authentication configuration", "error", err)
+		return
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
 	hub := realtime.NewHub(logger)
 	go hub.Run(ctx)
 
 	server := &http.Server{
-		Addr:              env("HTTP_ADDR", ":8080"),
-		Handler:           httpapi.NewRouter(logger, hub),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		Addr: env("HTTP_ADDR", ":8080"), Handler: httpapi.NewRouter(logger, hub, manager),
+		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
+		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second,
 	}
-
 	go func() {
 		logger.Info("server started", "address", server.Addr)
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -38,7 +39,6 @@ func main() {
 			stop()
 		}
 	}()
-
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
