@@ -16,30 +16,30 @@ import (
 const maxMessageBytes = 16 << 10
 
 type inboundEvent struct {
-	Type string `json:"type"`
-	RoomID string `json:"room_id"`
+	Type    string          `json:"type"`
+	RoomID  string          `json:"room_id"`
 	Payload json.RawMessage `json:"payload"`
 }
 
 type sender struct {
-	ID string `json:"id"`
+	ID          string `json:"id"`
 	DisplayName string `json:"display_name,omitempty"`
 }
 
 type outboundEvent struct {
-	ID string `json:"id"`
-	Type string `json:"type"`
-	RoomID string `json:"room_id"`
-	Sender sender `json:"sender"`
+	ID      string          `json:"id"`
+	Type    string          `json:"type"`
+	RoomID  string          `json:"room_id"`
+	Sender  sender          `json:"sender"`
 	Payload json.RawMessage `json:"payload"`
-	SentAt time.Time `json:"sent_at"`
+	SentAt  time.Time       `json:"sent_at"`
 }
 
 type Handler struct {
 	logger *slog.Logger
-	hub *Hub
-	auth *auth.Manager
-	ids atomic.Uint64
+	hub    *Hub
+	auth   *auth.Manager
+	ids    atomic.Uint64
 }
 
 func NewHandler(logger *slog.Logger, hub *Hub, manager *auth.Manager) http.Handler {
@@ -69,7 +69,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(maxMessageBytes)
 
 	client := &client{
-		id: fmt.Sprintf("client-%d", h.ids.Add(1)),
+		id:     fmt.Sprintf("client-%d", h.ids.Add(1)),
 		userID: claims.Subject, displayName: claims.DisplayName,
 		send: make(chan []byte, 64), done: make(chan struct{}),
 	}
@@ -110,7 +110,7 @@ func (h *Handler) readLoop(ctx context.Context, conn *websocket.Conn, client *cl
 		}
 		event := outboundEvent{
 			ID: fmt.Sprintf("event-%d", h.ids.Add(1)), Type: incoming.Type, RoomID: incoming.RoomID,
-			Sender: sender{ID: client.userID, DisplayName: client.displayName},
+			Sender:  sender{ID: client.userID, DisplayName: client.displayName},
 			Payload: incoming.Payload, SentAt: time.Now().UTC(),
 		}
 		encoded, err := json.Marshal(event)
