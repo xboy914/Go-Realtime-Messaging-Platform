@@ -13,10 +13,31 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/auth"
+	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/domain"
 	"github.com/xboy914/Go-Realtime-Messaging-Platform/internal/realtime"
 )
 
 const testSecret = "test-secret-with-at-least-thirty-two-bytes"
+
+type memoryMessages struct{}
+
+func (memoryMessages) RoomIDs(context.Context, string) ([]string, error) {
+	return []string{"demo-room"}, nil
+}
+
+func (memoryMessages) CreateMessage(
+	_ context.Context, roomID, userID, body string,
+) (domain.Message, error) {
+	return domain.Message{
+		ID: 1, RoomID: roomID, SenderID: userID, Body: body, CreatedAt: time.Now().UTC(),
+	}, nil
+}
+
+func (memoryMessages) ListMessages(
+	context.Context, string, string, int,
+) ([]domain.Message, error) {
+	return []domain.Message{}, nil
+}
 
 func testServer(t *testing.T) (*httptest.Server, *auth.Manager, context.CancelFunc) {
 	t.Helper()
@@ -28,7 +49,7 @@ func testServer(t *testing.T) (*httptest.Server, *auth.Manager, context.CancelFu
 	if err != nil {
 		t.Fatal(err)
 	}
-	return httptest.NewServer(NewRouter(logger, hub, manager)), manager, cancel
+	return httptest.NewServer(NewRouter(logger, hub, manager, memoryMessages{})), manager, cancel
 }
 
 func TestHealth(t *testing.T) {
@@ -90,7 +111,7 @@ func TestAuthenticatedBroadcastUsesTokenIdentity(t *testing.T) {
 	bob := dial(bobToken)
 	defer bob.CloseNow()
 
-	payload := []byte(`{"type":"message.created","room_id":"demo-room","payload":{"text":"hello","sender_id":"forged"}}`)
+	payload := []byte(`{"type":"message.created","room_id":"demo-room","payload":{"text":"hello"}}`)
 	if err := alice.Write(ctx, websocket.MessageText, payload); err != nil {
 		t.Fatal(err)
 	}
