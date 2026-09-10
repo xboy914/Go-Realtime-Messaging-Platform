@@ -1,50 +1,46 @@
 # Go Realtime Messaging Platform
 
-A scalable real-time messaging portfolio project built with Go and WebSocket. The implementation
-focuses on concurrency safety, explicit backpressure, testable protocol boundaries, and gradual
-evolution toward a multi-node messaging system.
+A scalable real-time messaging portfolio project built with Go and WebSocket, focused on concurrency
+safety, authenticated protocol boundaries, explicit backpressure, and horizontal scalability.
 
-## Milestone v0.1.0
+## Milestone v0.2.0
 
-- HTTP server with graceful shutdown and defensive timeouts
-- WebSocket endpoint at `/ws`
-- channel-driven hub with one owner goroutine
-- bounded client queues and slow-consumer eviction
-- validated JSON event envelope and 16 KiB message limit
-- health endpoint and security headers
-- race-enabled automated tests and CI
+- HS256 JWT issuance and strict verification
+- authenticated WebSocket handshake through the Authorization header
+- sender identity derived from signed claims, never client payloads
+- issuer, expiry, algorithm, subject, and minimum-secret validation
+- development CLI for short-lived synthetic user tokens
+- unauthorized and identity-spoofing integration tests
+- race-enabled CI, graceful shutdown, bounded queues, and message limits
 
 ## Run
 
 ```bash
-go mod download
+export JWT_SECRET='replace-this-with-a-long-random-development-secret'
 go run ./cmd/server
 ```
 
-Health check:
+Create a short-lived synthetic token in another terminal:
 
 ```bash
-curl http://localhost:8080/healthz
+export JWT_SECRET='replace-this-with-a-long-random-development-secret'
+TOKEN=$(go run ./cmd/token -user demo-alice -name Alice)
 ```
 
-Connect a WebSocket client to `ws://localhost:8080/ws` and send:
-
-```json
-{"type":"message.created","room_id":"demo-room","payload":{"text":"hello"}}
-```
+Connect to `ws://localhost:8080/ws` with `Authorization: Bearer $TOKEN`. The server-supplied
+`sender.id` always comes from the verified token.
 
 ## Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the concurrency model and event contract.
+See [architecture](docs/ARCHITECTURE.md) and [authentication](docs/AUTHENTICATION.md).
 
 ## Roadmap
 
-1. JWT authentication and user identity
-2. PostgreSQL-backed users, rooms, memberships, and message history
-3. private and group rooms with presence, typing, and read receipts
-4. Redis Pub/Sub for horizontal scaling
-5. Next.js client
-6. load testing, metrics, Docker Compose, and v1.0.0 release
+1. PostgreSQL-backed users, rooms, memberships, and message history
+2. private and group rooms with presence, typing, and read receipts
+3. Redis Pub/Sub for horizontal scaling
+4. Next.js client with a browser-safe WebSocket authentication exchange
+5. load testing, metrics, Docker Compose, and v1.0.0 release
 
 ## License
 
